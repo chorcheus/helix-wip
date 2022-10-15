@@ -69,10 +69,20 @@ pub fn render(context: &mut RenderContext, viewport: Rect, surface: &mut Surface
     // Left side of the status line.
 
     let element_ids = &context.editor.config().statusline.left;
-    element_ids
-        .iter()
-        .map(|element_id| get_render_function(*element_id))
-        .for_each(|render| render(context, write_left));
+    let mut script_index = 0;
+    for element_id in element_ids.iter() {
+        match element_id {
+            helix_view::editor::StatusLineElement::ExecuteScript => {
+                render_script_output(context, write_left, script_index);
+                script_index += 1;
+            }
+            _ => get_render_function(*element_id)(context, write_left),
+        }
+    }
+    // element_ids
+    //     .iter()
+    //     .map(|element_id| get_render_function(*element_id))
+    //     .for_each(|render| render(context, write_left));
 
     surface.set_spans(
         viewport.x,
@@ -84,10 +94,15 @@ pub fn render(context: &mut RenderContext, viewport: Rect, surface: &mut Surface
     // Right side of the status line.
 
     let element_ids = &context.editor.config().statusline.right;
-    element_ids
-        .iter()
-        .map(|element_id| get_render_function(*element_id))
-        .for_each(|render| render(context, write_right));
+    for element_id in element_ids.iter() {
+        match element_id {
+            helix_view::editor::StatusLineElement::ExecuteScript => {
+                render_script_output(context, write_right, script_index);
+                script_index += 1;
+            }
+            _ => get_render_function(*element_id)(context, write_right),
+        }
+    }
 
     surface.set_spans(
         viewport.x
@@ -102,10 +117,15 @@ pub fn render(context: &mut RenderContext, viewport: Rect, surface: &mut Surface
     // Center of the status line.
 
     let element_ids = &context.editor.config().statusline.center;
-    element_ids
-        .iter()
-        .map(|element_id| get_render_function(*element_id))
-        .for_each(|render| render(context, write_center));
+    for element_id in element_ids.iter() {
+        match element_id {
+            helix_view::editor::StatusLineElement::ExecuteScript => {
+                render_script_output(context, write_center, script_index);
+                script_index += 1;
+            }
+            _ => get_render_function(*element_id)(context, write_center),
+        }
+    }
 
     // Width of the empty space between the left and center area and between the center and right area.
     let spacing = 1u16;
@@ -148,6 +168,7 @@ where
         helix_view::editor::StatusLineElement::TotalLineNumbers => render_total_line_numbers,
         helix_view::editor::StatusLineElement::Separator => render_separator,
         helix_view::editor::StatusLineElement::Spacer => render_spacer,
+        _ => render_spacer,
     }
 }
 
@@ -398,4 +419,26 @@ where
     F: Fn(&mut RenderContext, String, Option<Style>) + Copy,
 {
     write(context, String::from(" "), None);
+}
+
+fn render_script_output<F>(context: &mut RenderContext, write: F, index: usize)
+where
+    F: Fn(&mut RenderContext, String, Option<Style>) + Copy,
+{
+    if index >= context.editor.config().statusline.scripts.len() {
+        panic!("Looked for index {}", index);
+    }
+    let script = &context.editor.config().statusline.scripts[index];
+    let output = std::process::Command::new("/bin/bash")
+        .arg("-c")
+        .arg(script)
+        .output()
+        .expect("Failed to execute command");
+    write(
+        context,
+        std::str::from_utf8(output.stdout.as_slice())
+            .unwrap_or("")
+            .to_string(),
+        None,
+    );
 }
