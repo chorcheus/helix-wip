@@ -140,6 +140,7 @@ where
         helix_view::editor::StatusLineElement::FileEncoding => render_file_encoding,
         helix_view::editor::StatusLineElement::FileLineEnding => render_file_line_ending,
         helix_view::editor::StatusLineElement::FileType => render_file_type,
+        helix_view::editor::StatusLineElement::WorkingDirectory => render_working_directory,
         helix_view::editor::StatusLineElement::Diagnostics => render_diagnostics,
         helix_view::editor::StatusLineElement::Selections => render_selections,
         helix_view::editor::StatusLineElement::Position => render_position,
@@ -342,6 +343,21 @@ where
     let file_type = context.doc.language_name().unwrap_or("text");
 
     write(context, format!(" {} ", file_type), None);
+}
+
+fn render_working_directory<F>(context: &mut RenderContext, write: F)
+where
+    F: Fn(&mut RenderContext, String, Option<Style>) + Copy,
+{
+    let working_directory = {
+        let wd = Some(std::env::current_dir().expect("couldn't determine current directory"))
+            .as_ref()
+            .map(|p| p.to_string_lossy())
+            .unwrap_or_else(|| SCRATCH_BUFFER_NAME.into());
+        format!(" {} ", wd)
+    };
+
+    write(context, working_directory, None);
 }
 
 fn render_file_name<F>(context: &mut RenderContext, write: F)
